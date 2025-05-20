@@ -39,7 +39,7 @@ let rec insert r pos value =
             -> Node ((leftSz + 1), rightSz, insert left pos value, right)
                 |> balance
         | Node (leftSz, rightSz, left, right) when pos >= leftSz
-            -> Node (leftSz, rightSz, left, insert right (pos - leftSz) value)
+            -> Node (leftSz, rightSz + 1, left, insert right (pos - leftSz) value)
                 |> balance
         | Value oldValue when pos >= 1
             -> Node (1, 1, Value oldValue, Value value)
