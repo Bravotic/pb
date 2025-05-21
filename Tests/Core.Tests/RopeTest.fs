@@ -259,3 +259,25 @@ let ``Remove on a node descends right when pos >= left size`` () =
 [<Fact>]
 let ``Remove on a node descends left when pos < left size`` () =
     Assert.Equal(balancedTree1, Rope.remove balancedTree3 0)
+
+////////////////////////////////////////////////////////////////////////////////
+// change tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``Change on Empty rope returns Empty`` () =
+    Assert.Equal(Rope.Empty, Rope.change Rope.Empty 0 "q")
+
+[<Fact>]
+let ``Change on Value returns the new Value`` () =
+    Assert.Equal(Rope.Value "q", Rope.change (Rope.Value "a") 0 "q")
+
+[<Fact>]
+let ``Change on node descends left if pos < left size`` () =
+    Assert.Equal(Rope.Node (1, 1, (Rope.Value "q"), (Rope.Value "b")),
+        Rope.change balancedTree1 0 "q")
+
+[<Fact>]
+let ``Change on node descends right if pos >= left size`` () =
+    Assert.Equal(Rope.Node (1, 1, (Rope.Value "a"), (Rope.Value "q")),
+        Rope.change balancedTree1 1 "q")

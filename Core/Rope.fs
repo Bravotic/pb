@@ -73,3 +73,14 @@ let rec remove r pos =
                 |> balance
         | Value _ -> Empty
         | _ -> Empty
+
+// Rope -> int -> string -> Rope
+// Changes the value at the position specified in the rope to a new value provided.
+let rec change (r : Rope) (pos : int) (newValue : string) =
+    match r with
+        | Node (leftSz, rightSz, left, right) when pos < leftSz
+            -> Node (leftSz, rightSz, change left pos newValue, right)
+        | Node (leftSz, rightSz, left, right) when pos >= leftSz
+            -> Node (leftSz, rightSz, left, change right (pos - leftSz) newValue)
+        | Value _ -> Value newValue
+        | _ -> Empty
