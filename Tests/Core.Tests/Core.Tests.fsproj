@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Compile Include="RopeTest.fs" />
+    <Compile Include="DocumentTest.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

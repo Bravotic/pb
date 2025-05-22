@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="Rope.fs" />
+    <Compile Include="Document.fs" />
   </ItemGroup>
 
 </Project>
