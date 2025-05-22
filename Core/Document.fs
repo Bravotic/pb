@@ -28,12 +28,12 @@ let toString (lineEnding : string) (doc : Document) =
 let private updateDocument (r : Rope.Rope) =
     { Data = r ; IsModified = true ; Length = Rope.size r }
 
-// LineNum -> string -> Document
+// LineNum -> string -> Document -> Document
 // Inserts the given value before the line number in the document.
 let insert (line : LineNum) (value : string) (doc : Document) =
     Rope.insert doc.Data (line - 1) value |> updateDocument
 
-// LineNum -> string -> Document
+// LineNum -> string -> Document -> Document
 // Appends the given value after hte line number in the document.
 let append (line : LineNum) (value : string) (doc : Document) =
     Rope.insert doc.Data line value |> updateDocument
