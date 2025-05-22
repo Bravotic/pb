@@ -297,3 +297,28 @@ let ``toList on a single value produces a list with just that value`` () =
 [<Fact>]
 let ``toList on a Node concats the left and right side`` () =
     Assert.Equal<Collections.Generic.IEnumerable<string>>([ "a" ; "b" ], Rope.toList balancedTree1)
+
+////////////////////////////////////////////////////////////////////////////////
+// fromList tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``Empty list produces empty Rope`` () =
+    Assert.Equal(Rope.Empty, Rope.fromList [])
+
+[<Fact>]
+let ``Single value list produces a single value rope`` () =
+    Assert.Equal(Rope.Value "a", Rope.fromList [ "a" ])
+
+[<Fact>]
+let ``Two elements are combined into a node when encountered`` () =
+    Assert.Equal(balancedTree1, Rope.fromList [ "a" ; "b" ])
+
+[<Fact>]
+let ``Multiple collections of elements should be grouped together`` () =
+    Assert.Equal(balancedTree2, Rope.fromList [ "a" ; "b" ; "c" ; "d" ])
+
+[<Fact>]
+let ``Rope created with fromList is balanced`` () =
+    Assert.False(Rope.fromList [ "a" ; "b" ; "c" ; "d" ; "e" ; "f" ; "g" ]
+                |> Rope.isRopeUnbalanced)

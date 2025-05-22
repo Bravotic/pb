@@ -113,4 +113,35 @@ let rec private toListHelper (r : Rope) (accumulator : string list) =
 // position in the Rope.
 let toList (r : Rope) =
     toListHelper r []
-    
+
+// Rope list -> Rope list
+// Combines two adjacent Ropes in a Rope list into a single Rope by conjoining them
+// with a Node.
+let rec private combineValues (lst : Rope list) =
+    match lst with
+        | first :: second :: rest ->
+            makeNode first second :: combineValues rest
+        | first :: [] ->
+            first :: []
+        | _ -> []
+
+// Rope list -> Rope
+let rec private fromListHelper (lst : Rope list) =
+    match lst with
+        | result :: [] ->
+            result
+        | [] -> Rope.Empty
+        | _ ->
+            lst
+            |> combineValues
+            |> fromListHelper
+
+// string list -> Rope
+// Takes a list of strings and returns a Rope which contains the strings in the positions they
+// appeared in the list.
+let fromList (lst : string list) =
+    lst
+    |> List.map (fun v -> Value v)
+    |> fromListHelper
+            
+            
