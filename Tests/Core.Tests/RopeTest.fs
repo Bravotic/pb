@@ -281,3 +281,19 @@ let ``Change on node descends left if pos < left size`` () =
 let ``Change on node descends right if pos >= left size`` () =
     Assert.Equal(Rope.Node (1, 1, (Rope.Value "a"), (Rope.Value "q")),
         Rope.change balancedTree1 1 "q")
+
+////////////////////////////////////////////////////////////////////////////////
+// toList tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``toList on an Empty rope produces an empty list`` () =
+    Assert.Equal<Collections.Generic.IEnumerable<string>>([], Rope.toList Rope.Empty)
+
+[<Fact>]
+let ``toList on a single value produces a list with just that value`` () =
+    Assert.Equal<Collections.Generic.IEnumerable<string>>([ "a" ], Rope.toList (Rope.Value "a"))
+
+[<Fact>]
+let ``toList on a Node concats the left and right side`` () =
+    Assert.Equal<Collections.Generic.IEnumerable<string>>([ "a" ; "b" ], Rope.toList balancedTree1)

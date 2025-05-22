@@ -84,3 +84,21 @@ let rec change (r : Rope) (pos : int) (newValue : string) =
             -> Node (leftSz, rightSz, left, change right (pos - leftSz) newValue)
         | Value _ -> Value newValue
         | _ -> Empty
+
+
+// Rope -> string list -> string list
+let rec private toListHelper (r : Rope) (accumulator : string list) =
+    match r with
+        | Node (_, _, left, right) ->
+            accumulator
+            |> toListHelper right
+            |> toListHelper left
+        | Value v -> v :: accumulator
+        | _ -> []
+
+// Rope -> string list
+// Converts a given Rope into a list of its values. Values are ordered by their
+// position in the Rope.
+let toList (r : Rope) =
+    toListHelper r []
+    
