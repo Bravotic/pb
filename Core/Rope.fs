@@ -5,6 +5,18 @@ type Rope =
     | Value of string
     | Empty
 
+// Rope -> int
+// Gets the size of the given rope
+let size (r : Rope) =
+    match r with
+        | Node (leftSz, rightSz, _, _) -> leftSz + rightSz
+        | _ -> 1
+
+// Rope -> Rope -> Rope
+// Creates a node with the given left and right side.
+let makeNode (left : Rope) (right : Rope) =
+    Node ((size left), (size right), left, right)
+
 // Rope -> bool
 // Determines whether the given Rope is balanced or not.
 let isRopeUnbalanced (r : Rope) =
