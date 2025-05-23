@@ -28,12 +28,32 @@ let toString (lineEnding : string) (doc : Document) =
 let private updateDocument (r : Rope.Rope) =
     { Data = r ; IsModified = true ; Length = Rope.size r }
 
-// LineNum -> string -> Document -> Document
-// Inserts the given value before the line number in the document.
-let insert (line : LineNum) (value : string) (doc : Document) =
-    Rope.insert doc.Data (line - 1) value |> updateDocument
+let private validateParameters fn (line : LineNum) (value : string) (doc : Document) =
+    if line > doc.Length then
+        Error "Line number is not in the document"
+    elif line = 0 && doc.Length <> 0 then
+        Error "Line number can only be zero if document length is zero"
+    else
+        Ok (fn line value doc)
 
 // LineNum -> string -> Document -> Document
+// Inserts the given value before the line number in the document.
+let private insertUnsafe (line : LineNum) (value : string) (doc : Document) =
+    Rope.insert doc.Data (line - 1) value |> updateDocument
+
+// LineNum -> String -> Document -> Result<Document>
+// Calls insertUnsafe while validating parameters given.
+let insert =
+    insertUnsafe
+    |> validateParameters
+    
+// LineNum -> string -> Document -> Document
 // Appends the given value after hte line number in the document.
-let append (line : LineNum) (value : string) (doc : Document) =
+let appendUnsafe (line : LineNum) (value : string) (doc : Document) =
     Rope.insert doc.Data line value |> updateDocument
+
+// LineNum -> string -> Document -> Result<Document>
+// Applies appendUnsafe while validating parameters given
+let append =
+    appendUnsafe
+    |> validateParameters

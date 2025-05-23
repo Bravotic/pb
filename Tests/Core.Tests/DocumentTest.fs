@@ -4,18 +4,24 @@ open System
 open Xunit
 open Document
 
-let emptyDocument = { Data = Rope.Empty 
-                      IsModified = false
-                      Length = 0 }
+let emptyDocument = Ok { Data = Rope.Empty 
+                         IsModified = false
+                         Length = 0 }
 
-let abDocument = { Data = Rope.fromList [ "a" ; "b" ]
-                   IsModified = true
-                   Length = 2 }
+let abDocument = Ok { Data = Rope.fromList [ "a" ; "b" ]
+                      IsModified = true
+                      Length = 2 }
 
 // Document -> String
 // Overrides Document.toString to set the line ending to "$"
 let toTestString (doc : Document) =
-    toString "$" doc
+    toString "$" doc |> Ok
+
+let (>>=) value expr =
+    Result.bind expr value
+
+let fail str =
+    Assert.True(false, str)
 
 ////////////////////////////////////////////////////////////////////////////////
 // toString tests
@@ -23,62 +29,107 @@ let toTestString (doc : Document) =
 
 [<Fact>]
 let ``toString on a blank document produces a blank string`` () =
-    Assert.Equal("", toTestString emptyDocument)
+    emptyDocument
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("", s)
+        | Error s -> fail s
 
 [<Fact>]
 let ``toString on ab document produces document with a and b on two lines`` () =
-    Assert.Equal("a$b", toTestString abDocument)
+    abDocument
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a$b", s)
+        | Error s -> fail s
 
+////////////////////////////////////////////////////////////////////////////////
+// input validation tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``Line number 0 is valid on empty document`` =
+    emptyDocument
+    >>= insert 0 "a"
+    |> function
+        | Ok s -> Assert.True(true)
+        | Error s -> Assert.True(false)
+
+[<Fact>]
+let ``Line number 0 is not valid on document with contents`` =
+    emptyDocument
+    >>= insert 0 "a"
+    >>= insert 0 "b"
+    |> function
+        | Ok _ -> fail "Expected an error"
+        | Error _ -> Assert.True(true)
+
+[<Fact>]
+let ``Line number <= our document length is accepted`` =
+    emptyDocument
+    >>= insert 0 "a"
+    >>= insert 1 "b"
+    |> function
+        | Ok _ -> Assert.True(true)
+        | Error _ -> Assert.True(false)
+
+[<Fact>]
+let ``Line number > our document length is rejected`` =
+    emptyDocument
+    >>= insert 100 "a"
+    |> function
+        | Ok _ -> fail "Expected an error"
+        | Error _ -> Assert.True(true)
+        
 ////////////////////////////////////////////////////////////////////////////////
 // insert tests
 ////////////////////////////////////////////////////////////////////////////////
 
 [<Fact>]
 let ``Insert on a blank document gives us just one line`` () =
-    Assert.Equal("a",
-                 emptyDocument
-                 |> insert 1 "a"
-                 |> toTestString)
+    emptyDocument
+    >>= insert 0 "a"
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a", s)
+        | Error s -> fail s
+
+[<Fact>]
+let ``Insert on a line that doesn't exist errors out`` () =
+    emptyDocument
+    >>= insert 1 "a"
+    |> function
+        | Ok s -> Assert.True(false)
+        | Error s -> Assert.True(true)
 
 [<Fact>]
 let ``Insert chained gives us multiple lines`` () =
-    Assert.Equal("a$b$c$d$e",
-                 emptyDocument
-                 |> insert 1 "a"
-                 |> insert 2 "b"
-                 |> insert 3 "c"
-                 |> insert 4 "d"
-                 |> insert 5 "e"
-                 |> toTestString)
-
-[<Fact>]
-let ``Insert on an existing line num places the new value before the previous value`` () =
-    Assert.Equal("c$a$b",
-                 emptyDocument
-                 |> insert 1 "a"
-                 |> insert 2 "b"
-                 |> insert 1 "c"
-                 |> toTestString)
-
+    emptyDocument
+    >>= insert 0 "c"
+    >>= insert 1 "b"
+    >>= insert 1 "a"
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a$b$c", s)
+        | Error s -> Assert.True(false, s)
+       
 [<Fact>]
 let ``Insert updates isModified flag`` () =
-    Assert.False(emptyDocument.IsModified)
-    Assert.True(emptyDocument
-                |> insert 1 "a"
-                |> fun doc -> doc.IsModified)
+    emptyDocument
+    >>= insert 0 "a"
+    |> function
+        | Ok doc -> Assert.True(doc.IsModified)
+        | Error s -> Assert.True(false, s)
 
 [<Fact>]
 let ``Insert updates Length`` () =
-    Assert.Equal(0, emptyDocument.Length)
-    Assert.Equal(1, emptyDocument |> insert 1 "a" |> fun d -> d.Length)
-    Assert.Equal(5,
-                 emptyDocument
-                 |> insert 1 "a"
-                 |> insert 2 "b"
-                 |> insert 3 "c"
-                 |> insert 4 "d"
-                 |> insert 5 "e"
-                 |> fun d -> d.Length)
+    emptyDocument
+    >>= insert 0 "a"
+    >>= insert 1 "b"
+    >>= insert 1 "c"
+    |> function
+        | Ok doc -> Assert.Equal(3, doc.Length)
+        | Error s -> fail s
                  
 ////////////////////////////////////////////////////////////////////////////////
 // append tests
@@ -86,40 +137,37 @@ let ``Insert updates Length`` () =
 
 [<Fact>]
 let ``Append on an empty document replaces contents`` () =
-    Assert.Equal("a", emptyDocument |> append 1 "a" |> toTestString)
-
+    emptyDocument
+    >>= append 0 "a"
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a", s)
+        | Error s -> fail s
+    
 [<Fact>]
 let ``Append in succession creates multiple consecutive lines`` () =
-    Assert.Equal("a$b$c$d$e",
-                 emptyDocument
-                 |> append 1 "a"
-                 |> append 2 "b"
-                 |> append 3 "c"
-                 |> append 4 "d"
-                 |> append 5 "e"
-                 |> toTestString)
-
-[<Fact>]
-let ``Append on existing line places new value after old value`` () =
-    Assert.Equal("a$c$b",
-                 emptyDocument
-                 |> append 1 "a"
-                 |> append 2 "b"
-                 |> append 1 "c"
-                 |> toTestString)
-
+    emptyDocument
+    >>= append 0 "a"
+    >>= append 1 "b"
+    >>= append 2 "c"
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a$b$c", s)
+        | Error s -> fail s
+        
 [<Fact>]
 let ``Append sets IsModified flag`` () =
-    Assert.False(emptyDocument.IsModified)
-    Assert.True(emptyDocument
-                |> append 1 "a"
-                |> fun d -> d.IsModified)
+     emptyDocument
+    >>= append 0 "a"
+    |> function
+        | Ok doc -> Assert.True(doc.IsModified)
+        | Error s -> fail s
 
 [<Fact>]
-let ``Append updates Length`` () =
-    Assert.Equal(0, emptyDocument.Length)
-    Assert.Equal(2,
-                 emptyDocument
-                 |> append 1 "a"
-                 |> append 2 "b"
-                 |> fun d -> d.Length) 
+    emptyDocument
+    >>= append 0 "a"
+    >>= append 1 "b"
+    >>= append 1 "c"
+    |> function
+        | Ok doc -> Assert.Equal(3, doc.Length)
+        | Error s -> fail s
