@@ -65,7 +65,7 @@ let rec insertAll (pos : int) (values : string list) (r : Rope) =
     match values with
         | first :: rest ->
             insert r pos first
-            |> insertAll (startLine + 1) rest
+            |> insertAll (pos + 1) rest
         | [] -> r
 
 // Rope -> string -> Rope
@@ -99,7 +99,7 @@ let rec remove r pos =
 // Removes 'count' items from the given rope starting at 'pos'.
 let rec removeAll (pos : int) (count : int) (r : Rope) =
     if count >= 0 then
-        Rope.remove r pos
+        remove r pos
         |> removeAll pos (count - 1)
     else
         r
