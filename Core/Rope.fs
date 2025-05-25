@@ -97,6 +97,17 @@ let rec change (r : Rope) (pos : int) (newValue : string) =
         | Value _ -> Value newValue
         | _ -> Empty
 
+// int -> Rope -> string
+// Gets the Value at the given position.
+let rec get (pos : int) (r : Rope) =
+    match r with
+        | Node (leftSz, _, left, _) when pos < leftSz ->
+            get pos left
+        | Node (leftSz, _, _, right) when pos >= leftSz ->
+            get (pos - leftSz) right
+        | Value v ->
+            v
+        | _ -> ""
 
 // Rope -> string list -> string list
 let rec private toListHelper (r : Rope) (accumulator : string list) =

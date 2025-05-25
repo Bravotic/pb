@@ -322,3 +322,29 @@ let ``Multiple collections of elements should be grouped together`` () =
 let ``Rope created with fromList is balanced`` () =
     Assert.False(Rope.fromList [ "a" ; "b" ; "c" ; "d" ; "e" ; "f" ; "g" ]
                 |> Rope.isRopeUnbalanced)
+
+////////////////////////////////////////////////////////////////////////////////
+// get tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``Get on empty rope produces empty string`` () =
+    Assert.Equal("", Rope.get 0 Rope.Empty)
+
+[<Fact>]
+let ``Get on single value returns that value`` () =
+    Assert.Equal("a", Rope.get 0 (Rope.Value "a"))
+
+[<Fact>]
+let ``Get descends left if pos < leftSz`` () =
+    balancedTree2
+    |> Rope.get 1
+    |> fun value ->
+        Assert.Equal("b", value)
+
+[<Fact>]
+let ``Get descends right if pos >= leftSz`` () =
+    balancedTree2
+    |> Rope.get 2
+    |> fun value ->
+        Assert.Equal("c", value)
