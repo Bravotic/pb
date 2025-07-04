@@ -1,18 +1,24 @@
 module Document
 
-// Represents a document buffer to which text can be edited.
-type Document = {
-    Data : Rope.Rope
-    IsModified : bool
-    Length : int
-}
-
 // Represents a line number in a Document. Note that lines are 1 indexed, therefore the
 // first line in a file is 1.
 type LineNum = int
 
+type Selection =
+    { Start : LineNum
+      End : LineNum }
+
+// Represents a document buffer to which text can be edited.
+type Document = {
+    Data : Rope.Rope
+    IsModified : bool
+    Selection : Selection
+    Length : int
+}
+
 let EmptyDocument = { Data = Rope.Empty
                       IsModified = false
+                      Selection = { Start = 0 ; End = 0 }
                       Length = 0 }
 
 // string -> Document -> string
@@ -25,95 +31,102 @@ let toString (lineEnding : string) (doc : Document) =
 
 // Rope -> Document
 // Helper function to update the Rope data and set the IsModified flag and Length.
-let private updateDocument (r : Rope.Rope) =
-    { Data = r ; IsModified = true ; Length = Rope.size r }
+let private updateDocument ({ Selection = s } : Document) (r : Rope.Rope) =
+    { Data = r ; IsModified = true ; Selection = s ; Length = Rope.size r }
+
+let private setSelection (startLine : LineNum) (endLine : LineNum) (doc : Document) =
+    let { Data = d ; IsModified = m ; Length = l } = doc
+    
+    { Data = d
+      IsModified = m
+      Length = l
+      Selection = { Start = startLine ; End = endLine} }
+
+let private updateSelection (start : LineNum) (lengthOfInsert : LineNum) (doc : Document) =
+    let { Selection = s ; Length = l } = doc
+    if l = 0 then
+        setSelection lengthOfInsert lengthOfInsert doc
+    else
+        let newStart = start + lengthOfInsert
+        setSelection newStart newStart doc
 
 // string list -> LineNum -> LineNum -> Document -> Document
 // Inserts all values given into the document at the specified start line. The ending line is ignored here.
-let private insertUnsafe (values : string list) (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    let clampedStartLine = max 0 (startLine - 1)
-    
-    Rope.insertAll clampedStartLine values doc.Data
-    |> updateDocument
+let insert (values : string list) (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let clampedStartLine = max 0 (s.Start - 1)
+            
+    Rope.insertAll clampedStartLine values data
+    |> updateDocument doc
+    |> updateSelection (s.Start - 1) values.Length
+    |> Ok
 
 // string list -> LineNum -> LineNum -> Document -> Document
 // Appends all values given after the start line specified. The end line is also ignored here.
-let private appendUnsafe (values : string list) (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    Rope.insertAll startLine values doc.Data
-    |> updateDocument
+let append (values : string list) (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    
+    Rope.insertAll s.Start values data
+    |> updateDocument doc
+    |> updateSelection s.Start values.Length
+    |> Ok
 
 // int -> int > Document -> Document
 // Removes the range from startLine to endLine inclusive from the document and returns the
 // updated Document.
-let private removeUnsafe (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    let clampedStartLine = max 0 (startLine - 1)
-    let count = endLine - startLine
+let remove (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let clampedStartLine = max 0 (s.Start - 1)
+    let count = s.End - s.Start
     
-    Rope.removeAll clampedStartLine count doc.Data
-    |> updateDocument
+    Rope.removeAll clampedStartLine count data
+    |> updateDocument doc
+    |> updateSelection clampedStartLine 0
+    |> Ok
 
 // int -> int -> Document -> (string list, Document)
 // Gets the values from startLine to endLine inclusive and collects them into a string list.
 // Returns a tuple of the resulting string liste along side the Document provided which is
 // unchanged.
-let private listUnsafe (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    ((Rope.getAll (startLine - 1) (endLine - 1) doc.Data), doc)
+let list (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let linesListed = max 1 (s.End - s.Start)
+    let updatedDoc =
+        doc
+        |> updateSelection s.Start linesListed
+        
+    ((Rope.getAll (s.Start - 1) (s.End - 1) doc.Data), updatedDoc)
+    |> Ok
     
-////////////////////////////////////////////////////////////////////////////////
-// The following code is backend agnostic, meaning if Rope was removed as the
-// data source, the following lines would not need to be updated.
-
-let private validateParameters (startLine : LineNum) (endLine : LineNum) (doc : Document) fn =
-    if startLine > endLine then
-        Error "Starting line cannot be larger than ending line"
-    elif startLine <= 0 then
-        Error "Starting line must be within the document"
+// LineNum -> LineNum -> Document -> Result<Document>
+// Selects a region in a document which has no content. This is the only case where the line number
+// 0 can be selected. In fact, it needs to be both the start and end line here...
+let private selectEmptyDocument (startLine : LineNum) (endLine : LineNum) (doc : Document) =
+    if startLine = 0 && endLine = 0 then
+        Ok (setSelection startLine endLine doc)
+    else
+        Error "Document has no content, selection must be 0,0"
+        
+// LineNum -> LineNum -> Document -> Result<Document>
+// Selects a region in a document which has content. This means the selection must be within the
+// range of [1,doc.Length]
+let private selectContentDocument (startLine : LineNum) (endLine : LineNum) (doc : Document) =
+    if startLine < 1 then
+        Error "Line must be within the range of [1,length]"
     elif endLine > doc.Length then
-        Error "Ending line must be within the document"
+        Error "Line must be within the range of [1,length]"
     else
-        Ok (fn startLine endLine doc)
-
-let private validateParametersInsApp startLine endLine doc fn =
-    if startLine = 0 && doc.Length = 0 then
-        Ok (fn startLine endLine doc)
-    else
-        validateParameters startLine endLine doc fn
-
-// LineNum -> LineNum -> String list -> Document -> Result<Document>
-// Calls insertUnsafe while validating parameters given.
-let insert (startLine : LineNum) (_ : LineNum) (values : string list) (doc : Document) =
-    insertUnsafe values
-    |> validateParametersInsApp startLine startLine doc
-   
-// LineNum -> string -> Document -> Result<Document>
-// Applies appendUnsafe while validating parameters given
-let append (startLine : LineNum) (_ : LineNum) (values : string list) (doc : Document) =
-    appendUnsafe values 
-    |> validateParametersInsApp startLine startLine doc
+        Ok (setSelection startLine endLine doc)
 
 // LineNum -> LineNum -> Document -> Result<Document>
-// Applies removeUnsafe while v
-let remove (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    removeUnsafe
-    |> validateParameters startLine endLine doc
-
-// LineNum -> LineNum -> Document -> Result<(string list, Document)>
-// Lists all lines from startLine to endLine inclusive. 
-let list (startLine : LineNum) (endLine : LineNum) (doc : Document) =
-    listUnsafe
-    |> validateParameters startLine endLine doc
-
-// LineNum -> string list -> Document -> Result<Document>
-// Helper function to perform an insert at a position, however if that position
-// is after the end of the document (for example at Length + 1), the appropriate
-// append command is called instead.
-let private insertWrap position values doc =
-    if position <= doc.Length then
-        insert position position values doc
+// Selects a region within the document for operations to occur at.
+let select (startLine : LineNum) (endLine : LineNum) (doc : Document) =
+    if doc.Length = 0 then
+        selectEmptyDocument startLine endLine doc
     else
-        append doc.Length doc.Length values doc
+        selectContentDocument startLine endLine doc
 
-let change (startLine : LineNum) (endLine : LineNum) (values : string list) (doc : Document) =
-    remove startLine endLine doc
-    |> Result.bind (insertWrap startLine values)
-  
+// LineNum -> Document -> Result<Document>
+// Moves the selection to a particular line. This is equivalent to selecting a single line.
+let move (line : LineNum) (doc : Document) =
+    select line line doc
