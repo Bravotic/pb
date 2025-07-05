@@ -10,6 +10,7 @@ type Rope =
 let size (r : Rope) =
     match r with
         | Node (leftSz, rightSz, _, _) -> leftSz + rightSz
+        | Empty -> 0
         | _ -> 1
 
 // Rope -> Rope -> Rope

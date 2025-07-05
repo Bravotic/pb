@@ -348,3 +348,16 @@ let ``Get descends right if pos >= leftSz`` () =
     |> Rope.get 2
     |> fun value ->
         Assert.Equal("c", value)
+
+////////////////////////////////////////////////////////////////////////////////
+// size tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``An empty rope has size 0`` () =
+    let size =
+        balancedTree1
+        |> Rope.removeAll 0 2
+        |> Rope.size
+
+    Assert.Equal(0, size)
