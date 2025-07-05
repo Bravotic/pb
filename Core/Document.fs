@@ -50,54 +50,6 @@ let private updateSelection (start : LineNum) (lengthOfInsert : LineNum) (doc : 
         let newStart = start + lengthOfInsert
         setSelection newStart newStart doc
 
-// string list -> LineNum -> LineNum -> Document -> Document
-// Inserts all values given into the document at the specified start line. The ending line is ignored here.
-let insert (values : string list) (doc : Document) =
-    let { Data = data ; Selection = s } = doc
-    let clampedStartLine = max 0 (s.Start - 1)
-            
-    Rope.insertAll clampedStartLine values data
-    |> updateDocument doc
-    |> updateSelection (s.Start - 1) values.Length
-    |> Ok
-
-// string list -> LineNum -> LineNum -> Document -> Document
-// Appends all values given after the start line specified. The end line is also ignored here.
-let append (values : string list) (doc : Document) =
-    let { Data = data ; Selection = s } = doc
-    
-    Rope.insertAll s.Start values data
-    |> updateDocument doc
-    |> updateSelection s.Start values.Length
-    |> Ok
-
-// int -> int > Document -> Document
-// Removes the range from startLine to endLine inclusive from the document and returns the
-// updated Document.
-let remove (doc : Document) =
-    let { Data = data ; Selection = s } = doc
-    let clampedStartLine = max 0 (s.Start - 1)
-    let count = s.End - s.Start
-    
-    Rope.removeAll clampedStartLine count data
-    |> updateDocument doc
-    |> updateSelection clampedStartLine 0
-    |> Ok
-
-// int -> int -> Document -> (string list, Document)
-// Gets the values from startLine to endLine inclusive and collects them into a string list.
-// Returns a tuple of the resulting string liste along side the Document provided which is
-// unchanged.
-let list (doc : Document) =
-    let { Data = data ; Selection = s } = doc
-    let linesListed = max 1 (s.End - s.Start)
-    let updatedDoc =
-        doc
-        |> updateSelection s.Start linesListed
-        
-    ((Rope.getAll (s.Start - 1) (s.End - 1) doc.Data), updatedDoc)
-    |> Ok
-    
 // LineNum -> LineNum -> Document -> Result<Document>
 // Selects a region in a document which has no content. This is the only case where the line number
 // 0 can be selected. In fact, it needs to be both the start and end line here...
@@ -112,9 +64,9 @@ let private selectEmptyDocument (startLine : LineNum) (endLine : LineNum) (doc :
 // range of [1,doc.Length]
 let private selectContentDocument (startLine : LineNum) (endLine : LineNum) (doc : Document) =
     if startLine < 1 then
-        Error "Line must be within the range of [1,length]"
+        Error (sprintf "Start line must be within the range of [1,%d], got %d." doc.Length startLine)
     elif endLine > doc.Length then
-        Error "Line must be within the range of [1,length]"
+         Error (sprintf "End line must be within the range of [1,%d], got %d." doc.Length startLine)
     else
         Ok (setSelection startLine endLine doc)
 
@@ -130,3 +82,56 @@ let select (startLine : LineNum) (endLine : LineNum) (doc : Document) =
 // Moves the selection to a particular line. This is equivalent to selecting a single line.
 let move (line : LineNum) (doc : Document) =
     select line line doc
+
+// string list -> LineNum -> LineNum -> Document -> Document
+// Inserts all values given into the document at the specified start line. The ending line is ignored here.
+let insert (values : string list) (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let clampedStartLine = max 0 (s.Start - 1)
+            
+    Rope.insertAll clampedStartLine values data
+    |> updateDocument doc
+    |> move (clampedStartLine + values.Length)
+
+// string list -> LineNum -> LineNum -> Document -> Document
+// Appends all values given after the start line specified. The end line is also ignored here.
+let append (values : string list) (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    
+    Rope.insertAll s.Start values data
+    |> updateDocument doc
+    |> move (s.Start + values.Length)
+   
+// int -> int > Document -> Document
+// Removes the range from startLine to endLine inclusive from the document and returns the
+// updated Document.
+let remove (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let clampedStartLine = max 0 (s.Start - 1)
+    let count = s.End - s.Start
+    let cursorAfterRemove =
+        min s.Start ((doc.Length - count) - 1)
+    
+    Rope.removeAll clampedStartLine count data
+    |> updateDocument doc
+    |> move cursorAfterRemove
+
+// int -> int -> Document -> (string list, Document)
+// Gets the values from startLine to endLine inclusive and collects them into a string list.
+// Returns a tuple of the resulting string liste along side the Document provided which is
+// unchanged.
+let list (doc : Document) =
+    let { Data = data ; Selection = s } = doc
+    let linesListed = max 1 (s.End - s.Start)
+    let updatedDoc =
+        doc
+        |> updateSelection s.Start linesListed
+        
+    ((Rope.getAll (s.Start - 1) (s.End - 1) doc.Data), updatedDoc)
+    |> Ok
+    
+
+let change (values : string list) (doc : Document) =
+    remove doc
+    |> Result.bind (insert values)
+    

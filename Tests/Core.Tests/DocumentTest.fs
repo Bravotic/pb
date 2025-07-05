@@ -239,6 +239,18 @@ let ``Remove on one line returns Empty document`` () =
     >>= toTestString
     |> function
         | Ok s -> Assert.Equal("", s)
+        | Error s ->
+            fail s
+
+[<Fact>]
+let ``Remove places cursor at 0 when removing last line`` () =
+    emptyDocument
+    >>= append [ "a" ]
+    >>= remove
+    |> function
+        | Ok ({ Selection = {Start = s ; End = e }}) ->
+            Assert.Equal(0, s)
+            Assert.Equal(0, e)
         | Error s -> fail s
 
 [<Fact>]
@@ -319,16 +331,29 @@ let ``list displays proper range when requirested`` () =
 [<Fact>]
 let ``change changes value from one to another`` () =
     abcDocument
-    >>= change 1 1 [ "g" ]
+    >>= select 1 1
+    >>= change [ "g" ]
     >>= toTestString
     |> function
         | Ok s -> Assert.Equal("g$b$c", s)
         | Error s -> fail s
 
 [<Fact>]
+let ``change at start of document works`` () =
+    abcDocument
+    >>= select 1 1
+    >>= change [ "g" ]
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("g$b$c", s)
+        | Error s -> fail s
+    
+
+[<Fact>]
 let ``change in middle of document works`` () =
     abcDocument
-    >>= change 2 2 [ "g" ]
+    >>= select 2 2
+    >>= change [ "g" ]
     >>= toTestString
     |> function
         | Ok s -> Assert.Equal("a$g$c", s)
@@ -337,7 +362,8 @@ let ``change in middle of document works`` () =
 [<Fact>]
 let ``change at the end of the document works`` () =
     abcDocument
-    >>= change 3 3 [ "g" ]
+    >>= select 3 3
+    >>= change [ "g" ]
     >>= toTestString
     |> function
         | Ok s -> Assert.Equal("a$b$g", s)
