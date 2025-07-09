@@ -132,6 +132,33 @@ let list (doc : Document) =
     
 
 let change (values : string list) (doc : Document) =
-    remove doc
-    |> Result.bind (insert values)
+    let { Selection = { Start = s ; End = e}} = doc
+    let writeOperation = if e = doc.Length then append else insert
     
+    remove doc
+    |> Result.bind (writeOperation values)
+
+let private moveText operation (destination : LineNum) (doc : Document) =
+    let { Selection = { Start = s ; End = e }} = doc
+
+    if destination >= s && destination <= e then
+        Error "Destination of move cannot be inside selection"
+    else
+        let selectionSize = (e + 1) - s
+        let adjustedDestination =
+            if destination >= e then
+                destination - selectionSize
+            else
+                destination
+
+        list doc
+        |> Result.bind (fun (contents, _) ->
+                        remove doc
+                        |> Result.bind (move adjustedDestination)
+                        |> Result.bind (operation contents))
+
+let moveAppend =
+    moveText append
+
+let moveInsert =
+    moveText insert

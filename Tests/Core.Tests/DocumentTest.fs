@@ -323,7 +323,7 @@ let ``list displays proper range when requirested`` () =
         | Ok (strlist, _) ->
             Assert.Equal("a$b", (String.concat "$" strlist))
         | Error s -> fail s
-(*
+
 ////////////////////////////////////////////////////////////////////////////////
 // change tests
 ////////////////////////////////////////////////////////////////////////////////
@@ -368,4 +368,36 @@ let ``change at the end of the document works`` () =
     |> function
         | Ok s -> Assert.Equal("a$b$g", s)
         | Error s -> fail s
-*)
+
+////////////////////////////////////////////////////////////////////////////////
+// Move append tests
+////////////////////////////////////////////////////////////////////////////////
+
+[<Fact>]
+let ``Move append works properly`` () =
+    abcDocument
+    >>= move 3
+    >>= moveAppend 1
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("a$c$b", s)
+        | Error s -> fail s
+
+[<Fact>]
+let ``Move append properly adjusts destination`` () =
+    abcDocument
+    >>= move 1
+    >>= moveAppend 3
+    >>= toTestString
+    |> function
+        | Ok s -> Assert.Equal("b$c$a", s)
+        | Error s -> fail s
+
+[<Fact>]
+let ``Move append throws error if move location is within selection`` () =
+    abcDocument
+    >>= select 1 3
+    >>= moveAppend 1
+    |> function
+        | Ok s -> fail "Expected an error"
+        | Error s -> Assert.True(true)
